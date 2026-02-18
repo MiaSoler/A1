@@ -11,6 +11,7 @@ public class Enemy {
     public float maxForce = 200f;
     public float rotation;
     public boolean exploded = false;
+    public boolean isLeader = false;
 
      // Formation
     public Vector2 formationOffset; // null if leader
@@ -22,16 +23,25 @@ public class Enemy {
     }
 
     public void update(float dt, Vector2 target, Vector2 separationForce) {
-        Vector2 steering = seek(target);
-        float explosionRadius = 30f;
+
+        if (exploded) return;
+
+        float switchDistance = 100f;   // distance where we switch to ARRIVE
+        float explosionRadius = 30f;    
+        float distance = position.dst(target);
+
+        Vector2 steering;
+
+        if (distance > switchDistance) {
+            steering = seek(target);       // FAR → SEEK
+        } else {
+            steering = arrive(target);     // CLOSE → ARRIVE
+        }
+     
 
         if (separationForce != null) {
             steering.add(separationForce);
         }
-
-        // Limit steering
-        if (steering.len() > maxForce)
-            steering.nor().scl(maxForce);
 
         velocity.add(steering.scl(dt));
 
@@ -44,27 +54,27 @@ public class Enemy {
             rotation = velocity.angleDeg() - 90f;
         }
 
-        if (position.dst(target) < explosionRadius) {
+        if (!exploded && position.dst(target) < 30f) {
             exploded = true;
         }
 
     }
+
     //far away full speed
 
-    private Vector2 seek(Vector2 target) {
+    public Vector2 seek(Vector2 target) {
         Vector2 desired = target.cpy()
                 .sub(position)
                 .nor()
                 .scl(maxSpeed);
 
-        return desired.sub(velocity);
+        return computeSteering(desired);
     }
 
-    //near target or very close -> slow down speed
+
     public Vector2 arrive(Vector2 target) {
 
         float slowRadius = 120f;
-        float maxSpeed = 200f;
     
         Vector2 desired = target.cpy().sub(position);
         float distance = desired.len();
@@ -73,16 +83,28 @@ public class Enemy {
             return new Vector2(); 
         }
     
-        float speed = maxSpeed;
+        float speed = this.maxSpeed;
     
         if (distance < slowRadius) {
-            speed = maxSpeed * (distance / slowRadius);
+            speed = this.maxSpeed * (distance / slowRadius);
         }
     
         desired.nor().scl(speed);
     
+        return computeSteering(desired);
+    } 
+
+    private Vector2 computeSteering(Vector2 desired) {
+
         Vector2 steering = desired.sub(velocity);
     
+        if (steering.len() > maxForce) {
+            steering.nor().scl(maxForce);
+        }
+    
         return steering;
-    }    
+    }
+    
+
+    
 }

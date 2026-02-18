@@ -2,9 +2,11 @@ package com.mireia.steering;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -12,38 +14,30 @@ import com.badlogic.gdx.utils.ScreenUtils;
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
     private SpriteBatch batch;
+    private BitmapFont font;
+
     private Texture shipTexture, asteroidTexture;
     private int shipWidth;
     private int shipHeight;
-    private ShapeRenderer shapeRenderer;
+ 
     private Player player;  
     private Enemy enemyLeader;
     private Array<Enemy> followers;
 
+    private boolean gameOver = false;
 
     @Override
-    public void create() {
-        shapeRenderer = new ShapeRenderer();
-        player = new Player(400, 300);
-
+    public void create() {        
         batch = new SpriteBatch();
+        font = new BitmapFont();
+
         shipTexture = new Texture("player.png");
         asteroidTexture = new Texture("enemy.png");
 
         shipWidth = shipTexture.getWidth();
         shipHeight = shipTexture.getHeight();
-       
-        enemyLeader = new Enemy(100, 100);
-        followers = new Array<>();
 
-        Enemy follower1 = new Enemy(180, 260);
-        follower1.formationOffset = new Vector2(-40, -40);
-
-        Enemy follower2 = new Enemy(220, 260);
-        follower2.formationOffset = new Vector2(40, -40);
-
-        followers.add(follower1);
-        followers.add(follower2);
+        restartGame(); // initialize game objects
     }
 
     @Override
@@ -52,8 +46,10 @@ public class Main extends ApplicationAdapter {
 
         ScreenUtils.clear(0, 0, 0, 1);
 
-        update(dt);
-        draw();
+        if (enemyLeader != null){
+            update(dt);
+            draw();
+        }
     }
 
     @Override
@@ -63,6 +59,14 @@ public class Main extends ApplicationAdapter {
     }
 
     public void update(float dt) {
+
+        if (gameOver) {
+            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+                restartGame();
+            }
+                return;   // stop all logic 
+        }
+
         player.update(dt);
 
         enemyLeader.update(dt, player.position, null);
@@ -80,19 +84,29 @@ public class Main extends ApplicationAdapter {
 
         if (enemyLeader.exploded) {
             player.takeDamage(20);
+            assignNewLeader();
         }
-        
+
+        if (player.health <= 0) {
+            gameOver = true;
+        }
     }
 
     public void draw() {
         batch.begin();
 
         drawPlayer();
-        drawEnemy(enemyLeader);
+        if (enemyLeader != null)
+            drawEnemy(enemyLeader);
 
         // Followers
         for (Enemy follower : followers) {
             drawEnemy(follower);
+        }
+
+        if (gameOver) {
+            font.draw(batch, "GAME OVER", 350, 320);
+            font.draw(batch, "Press R to Restart", 330, 280);
         }
 
         batch.end();
@@ -153,5 +167,66 @@ public class Main extends ApplicationAdapter {
         }
         return force;
     }
+
+    private void restartGame() {
+        gameOver = false;
     
+        player = new Player(400, 300);
+    
+        enemyLeader = new Enemy(100, 100);
+        followers = new Array<>();
+
+        Enemy follower1 = new Enemy(180, 260);
+        follower1.formationOffset = new Vector2(-40, -40);
+
+        Enemy follower2 = new Enemy(220, 260);
+        follower2.formationOffset = new Vector2(40, -40);
+
+        followers.add(follower1);
+        followers.add(follower2);
+    }
+
+    private void assignNewLeader() {
+
+        if (followers.size == 0) {
+            enemyLeader = null;
+            return;
+        }
+    
+        Enemy closest = followers.first();
+        float minDist = closest.position.dst(player.position);
+    
+        for (int i = 1; i < followers.size; i++) {
+            Enemy e = followers.get(i);
+            float dist = e.position.dst(player.position);
+    
+            if (dist < minDist) {
+                minDist = dist;
+                closest = e;
+            }
+        }
+    
+        followers.removeValue(closest, true);
+        enemyLeader = closest;
+
+        recalculateFormationOffsets();
+    }
+
+    private void recalculateFormationOffsets() {
+
+    float spacing = 60f;
+
+    for (int i = 0; i < followers.size; i++) {
+
+        float angle = i * 45f;
+
+        float offsetX = MathUtils.cosDeg(angle) * spacing;
+        float offsetY = MathUtils.sinDeg(angle) * spacing;
+
+        followers.get(i).formationOffset.set(offsetX, offsetY);
+    }
+}
+
+
+
 }
