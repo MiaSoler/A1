@@ -11,16 +11,22 @@ public class Player {
     public float rotation;
 
     public int health;
+    public float width;
+    public float height;
 
-    public Player(float x, float y) {
+    public Player(float x, float y, float width, float height) {
         position = new Vector2(x, y);
         velocity = new Vector2();
         rotation = 0f;
-
         health = 100;
+        this.width = width;
+        this.height = height;
     }
 
     public void update(float dt) {
+        float halfWidth = width / 2f;
+        float halfHeight = height / 2f;
+
         velocity.setZero();
  
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
@@ -38,6 +44,12 @@ public class Player {
             // Rotate ship in movement direction
             rotation = velocity.angleDeg() - 90f;
         }       
+
+        position.x = Math.max(halfWidth,
+            Math.min(position.x, Gdx.graphics.getWidth() - halfWidth));
+
+        position.y = Math.max(halfHeight,
+                Math.min(position.y, Gdx.graphics.getHeight() - halfHeight));
 
         position.add(velocity.scl(dt));
     }

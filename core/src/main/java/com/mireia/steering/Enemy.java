@@ -16,13 +16,14 @@ public class Enemy {
      // Formation
     public Vector2 formationOffset; // null if leader
 
-    public Enemy(float posX, float posY) {
+    public Enemy(float posX, float posY, boolean isLeader) {
         position = new Vector2(posX, posY);
         velocity = new Vector2();
         formationOffset = null; 
+        isLeader = this.isLeader;
     }
 
-    public void update(float dt, Vector2 target, Vector2 separationForce) {
+    public void update(float dt, Vector2 target, Vector2 separationForce, Vector2 playerPosition) {
 
         if (exploded) return;
 
@@ -54,10 +55,11 @@ public class Enemy {
             rotation = velocity.angleDeg() - 90f;
         }
 
-        if (!exploded && position.dst(target) < 30f) {
-            exploded = true;
+        if (!exploded) {
+            if ((this.isLeader && position.dst(target)  < 30f) || (!this.isLeader  && position.dst(playerPosition) < 30f)) {
+                exploded = true;
+            }
         }
-
     }
 
     //far away full speed

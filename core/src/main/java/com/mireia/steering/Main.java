@@ -19,6 +19,7 @@ public class Main extends ApplicationAdapter {
     private Texture shipTexture, asteroidTexture;
     private int shipWidth;
     private int shipHeight;
+    private float scale = 0.25f;
  
     private Player player;  
     private Enemy enemyLeader;
@@ -69,7 +70,7 @@ public class Main extends ApplicationAdapter {
 
         player.update(dt);
 
-        enemyLeader.update(dt, player.position, null);
+        enemyLeader.update(dt, player.position, null, player.position);
 
         for (int i = 0; i < followers.size; i++) {
             Enemy follower = followers.get(i);
@@ -79,13 +80,23 @@ public class Main extends ApplicationAdapter {
         
             Vector2 separation = computeSeparation(follower, followers);
         
-            follower.update(dt, target, separation);
+            follower.update(dt, target, separation, player.position);
+
+            if (follower.exploded) {
+                player.takeDamage(20);
+                followers.removeIndex(i);
+               // spawnFollower(1);
+                System.out.println("follower exploded: " + i);
+                i--;
+            }
         }
 
         if (enemyLeader.exploded) {
             player.takeDamage(20);
             assignNewLeader();
+           // spawnFollower(MathUtils.random(1, 3));
         }
+
 
         if (player.health <= 0) {
             gameOver = true;
@@ -96,12 +107,14 @@ public class Main extends ApplicationAdapter {
         batch.begin();
 
         drawPlayer();
-        if (enemyLeader != null)
+        if (enemyLeader != null&& !enemyLeader.exploded)
             drawEnemy(enemyLeader);
 
         // Followers
         for (Enemy follower : followers) {
-            drawEnemy(follower);
+            if (!follower.exploded) {
+                drawEnemy(follower);
+            }
         }
 
         if (gameOver) {
@@ -113,8 +126,7 @@ public class Main extends ApplicationAdapter {
     }
 
     public void drawPlayer() {
-        float scale = 0.25f;
-        
+                
         batch.draw(
             shipTexture,
             player.position.x - (shipWidth * scale) / 2f,
@@ -171,19 +183,12 @@ public class Main extends ApplicationAdapter {
     private void restartGame() {
         gameOver = false;
     
-        player = new Player(400, 300);
+        player = new Player(400, 300, shipWidth * scale, shipHeight * scale);
     
-        enemyLeader = new Enemy(100, 100);
+        enemyLeader = new Enemy(100, 100, true);
         followers = new Array<>();
 
-        Enemy follower1 = new Enemy(180, 260);
-        follower1.formationOffset = new Vector2(-40, -40);
-
-        Enemy follower2 = new Enemy(220, 260);
-        follower2.formationOffset = new Vector2(40, -40);
-
-        followers.add(follower1);
-        followers.add(follower2);
+        spawnFollower(2);
     }
 
     private void assignNewLeader() {
@@ -208,25 +213,46 @@ public class Main extends ApplicationAdapter {
     
         followers.removeValue(closest, true);
         enemyLeader = closest;
+        closest.isLeader = true;
 
         recalculateFormationOffsets();
     }
 
     private void recalculateFormationOffsets() {
 
-    float spacing = 60f;
+        float spacing = 60f;
 
-    for (int i = 0; i < followers.size; i++) {
+        for (int i = 0; i < followers.size; i++) {
 
-        float angle = i * 45f;
+            float angle = i * 45f;
 
-        float offsetX = MathUtils.cosDeg(angle) * spacing;
-        float offsetY = MathUtils.sinDeg(angle) * spacing;
+            float offsetX = MathUtils.cosDeg(angle) * spacing;
+            float offsetY = MathUtils.sinDeg(angle) * spacing;
 
-        followers.get(i).formationOffset.set(offsetX, offsetY);
+            followers.get(i).formationOffset.set(offsetX, offsetY);
+        }
     }
+
+    private void spawnFollower(int amount) {
+
+        int maxFollowers = 5;
+
+        if (followers.size < maxFollowers) {
+            for (int i = 0; i<amount; i++) { 
+                // Spawn near the leader
+                Vector2 spawnPos = enemyLeader.position.cpy()
+                    .add(MathUtils.random(-100, 100), 
+                        MathUtils.random(-100, 100));
+    
+                Enemy newFollower = new Enemy(spawnPos.x, spawnPos.y, false);
+                newFollower.formationOffset = new Vector2(-40, -40);
+    
+                followers.add(newFollower);
+    
+                recalculateFormationOffsets();
+            }
+        }
+    }
+    
 }
 
-
-
-}
