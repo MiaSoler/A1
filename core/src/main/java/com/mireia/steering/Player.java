@@ -27,6 +27,12 @@ public class Player {
         float halfWidth = width / 2f;
         float halfHeight = height / 2f;
 
+        float minX = halfWidth;
+        float maxX = Gdx.graphics.getWidth() - halfWidth;
+
+        float minY = halfHeight;
+        float maxY = Gdx.graphics.getHeight() - Main.UI_HEIGHT - halfHeight;
+
         velocity.setZero();
  
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
@@ -45,11 +51,8 @@ public class Player {
             rotation = velocity.angleDeg() - 90f;
         }       
 
-        position.x = Math.max(halfWidth,
-            Math.min(position.x, Gdx.graphics.getWidth() - halfWidth));
-
-        position.y = Math.max(halfHeight,
-                Math.min(position.y, Gdx.graphics.getHeight() - halfHeight));
+        position.x = Math.max(minX, Math.min(position.x, maxX));
+        position.y = Math.max(minY, Math.min(position.y, maxY));
 
         position.add(velocity.scl(dt));
     }

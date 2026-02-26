@@ -1,5 +1,6 @@
 package com.mireia.steering;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.math.Vector2;
 
 
@@ -30,6 +31,7 @@ public class Enemy {
         float switchDistance = 100f;   // distance where we switch to ARRIVE
         float explosionRadius = 30f;    
         float distance = position.dst(target);
+        float halfSize = 20f;
 
         Vector2 steering;
 
@@ -39,12 +41,11 @@ public class Enemy {
             steering = arrive(target);     // CLOSE → ARRIVE
         }
      
-
         if (separationForce != null) {
-            steering.add(separationForce);
+            steering.add(separationForce.scl(1.5f)); 
         }
 
-        velocity.add(steering.scl(dt));
+        velocity.add(steering.cpy().scl(dt));
 
         if (velocity.len() > maxSpeed)
             velocity.nor().scl(maxSpeed);
@@ -55,13 +56,18 @@ public class Enemy {
             rotation = velocity.angleDeg() - 90f;
         }
 
+        // Explosion logic
         if (!exploded) {
-            if ((this.isLeader && position.dst(target)  < 30f) || (!this.isLeader  && position.dst(playerPosition) < 30f)) {
+            if ((this.isLeader && distance  < 30f) || (!this.isLeader  && position.dst(playerPosition) < 30f)) {
                 exploded = true;
             }
         }
-    }
+        
+        float minY = halfSize;
+        float maxY = Gdx.graphics.getHeight() - Main.UI_HEIGHT - halfSize;
 
+        position.y = Math.max(minY, Math.min(position.y, maxY));
+    }
     //far away full speed
 
     public Vector2 seek(Vector2 target) {

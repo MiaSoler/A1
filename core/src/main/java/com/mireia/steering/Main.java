@@ -3,9 +3,11 @@ package com.mireia.steering;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
@@ -13,8 +15,10 @@ import com.badlogic.gdx.utils.ScreenUtils;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
+    public static final float UI_HEIGHT = 60f;
     private SpriteBatch batch;
     private BitmapFont font;
+    private ShapeRenderer shapeRenderer;
 
     private Texture shipTexture, asteroidTexture;
     private int shipWidth;
@@ -26,11 +30,12 @@ public class Main extends ApplicationAdapter {
     private Array<Enemy> followers;
 
     private boolean gameOver = false;
-
+    
     @Override
     public void create() {        
         batch = new SpriteBatch();
         font = new BitmapFont();
+        shapeRenderer = new ShapeRenderer();
 
         shipTexture = new Texture("player.png");
         asteroidTexture = new Texture("enemy.png");
@@ -57,6 +62,8 @@ public class Main extends ApplicationAdapter {
     public void dispose() {
         batch.dispose();
         shipTexture.dispose();
+        shapeRenderer.dispose();
+        asteroidTexture.dispose();
     }
 
     public void update(float dt) {
@@ -74,9 +81,12 @@ public class Main extends ApplicationAdapter {
 
         for (int i = 0; i < followers.size; i++) {
             Enemy follower = followers.get(i);
+
+            //calculate the future position of the enemy leader
+            Vector2 futurePos = enemyLeader.position.cpy()
+                .add(enemyLeader.velocity.cpy().scl(0.3f));
         
-            Vector2 target = enemyLeader.position.cpy()
-                                .add(follower.formationOffset);
+            Vector2 target = futurePos.add(follower.formationOffset);
         
             Vector2 separation = computeSeparation(follower, followers);
         
@@ -105,7 +115,7 @@ public class Main extends ApplicationAdapter {
 
     public void draw() {
         batch.begin();
-
+        
         drawPlayer();
         if (enemyLeader != null&& !enemyLeader.exploded)
             drawEnemy(enemyLeader);
@@ -123,9 +133,11 @@ public class Main extends ApplicationAdapter {
         }
 
         batch.end();
+
+        drawHealthBar();
     }
 
-    public void drawPlayer() {
+    private void drawPlayer() {
                 
         batch.draw(
             shipTexture,
@@ -143,7 +155,7 @@ public class Main extends ApplicationAdapter {
             false, false
         );
     }
-    public void drawEnemy(Enemy e) {     
+    private void drawEnemy(Enemy e) {     
         float size = 40f; // fixed in-game size (recommended)
 
         batch.draw(
@@ -161,22 +173,70 @@ public class Main extends ApplicationAdapter {
         );
     }
 
+    private void drawHealthBar() {
+
+        float barWidth = 200;
+        float barHeight = 20;
+        float margin = 20;
+    
+        float x = Gdx.graphics.getWidth() - barWidth - margin;
+        float y = Gdx.graphics.getHeight() - barHeight - margin;
+    
+        float healthPercent = (float) player.health / 100;
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        // Background (gray)
+        shapeRenderer.setColor(Color.DARK_GRAY);
+        shapeRenderer.rect(x, y, barWidth, barHeight);
+
+        // Health (red)
+        shapeRenderer.setColor(Color.RED);
+        shapeRenderer.rect(x, y, barWidth * healthPercent, barHeight);
+
+        shapeRenderer.end();
+
+        // Draw text
+        batch.begin();
+        font.draw(batch, "Player", x, y + barHeight + 15);
+        batch.end();
+    }
+
     private Vector2 computeSeparation(Enemy current, Array<Enemy> followers) {
-        float desiredSeparation = 25f;
+        float desiredSeparation = 40f;
+        int count = 0;
         Vector2 force = new Vector2();
     
         for (Enemy follower : followers) {
             if (follower == current) continue;
     
             float distance = current.position.dst(follower.position);
+
             if (distance > 0 && distance < desiredSeparation) {
                 Vector2 difference = current.position.cpy()
                         .sub(follower.position)
                         .nor()
                         .scl(1f / distance);
                 force.add(difference);
+                count++;
             }
         }
+        // Average the force
+        if (count > 0) {
+            force.scl(1f / count);
+        }
+
+        // Convert to proper steering force
+        if (force.len() > 0) {
+            force.nor().scl(current.maxSpeed);
+            force.sub(current.velocity);
+
+            // Limit force
+            if (force.len() > current.maxForce) {
+                force.nor().scl(current.maxForce);
+            }
+        }
+
         return force;
     }
 
