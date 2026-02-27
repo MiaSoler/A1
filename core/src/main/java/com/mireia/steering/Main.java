@@ -29,6 +29,11 @@ public class Main extends ApplicationAdapter {
     private Enemy enemyLeader;
     private Array<Enemy> followers;
 
+    //level
+    private int level = 1;
+    private float levelTimer = 0f;
+    private float levelInterval = 15f; // seconds to level up
+
     private boolean gameOver = false;
     
     @Override
@@ -67,12 +72,24 @@ public class Main extends ApplicationAdapter {
     }
 
     public void update(float dt) {
-
+        
         if (gameOver) {
             if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
                 restartGame();
             }
                 return;   // stop all logic 
+        }
+
+        levelTimer += dt;
+
+        if (levelTimer >= levelInterval) {
+            level++;
+            levelTimer = 0f;
+            if (enemyLeader != null)
+            enemyLeader.setDifficulty(level);
+    
+            for (Enemy follower : followers)
+                follower.setDifficulty(level);
         }
 
         player.update(dt);
@@ -199,11 +216,14 @@ public class Main extends ApplicationAdapter {
         // Draw text
         batch.begin();
         font.draw(batch, "Player", x, y + barHeight + 15);
+
+        // Draw level on left side
+        font.draw(batch, "Level: " + level, 20, Gdx.graphics.getHeight() - 20);
         batch.end();
     }
 
     private Vector2 computeSeparation(Enemy current, Array<Enemy> followers) {
-        float desiredSeparation = 40f;
+        float desiredSeparation = 70f;
         int count = 0;
         Vector2 force = new Vector2();
     
@@ -242,6 +262,8 @@ public class Main extends ApplicationAdapter {
 
     private void restartGame() {
         gameOver = false;
+        level = 1;
+        levelTimer = 0f;
     
         player = new Player(400, 300, shipWidth * scale, shipHeight * scale);
     

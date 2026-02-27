@@ -10,9 +10,13 @@ public class Enemy {
 
     public float maxSpeed = 150f;
     public float maxForce = 200f;
+    private final float baseMaxSpeed = 150f;
+    private final float baseMaxForce = 50f;
+    private final float baseSeparationWeight = 1.5f;
     public float rotation;
     public boolean exploded = false;
     public boolean isLeader = false;
+    public float separationWeight = 1.5f;
 
      // Formation
     public Vector2 formationOffset; // null if leader
@@ -32,6 +36,7 @@ public class Enemy {
         float explosionRadius = 30f;    
         float distance = position.dst(target);
         float halfSize = 20f;
+        // try 1.5 – 3.0
 
         Vector2 steering;
 
@@ -42,7 +47,7 @@ public class Enemy {
         }
      
         if (separationForce != null) {
-            steering.add(separationForce.scl(1.5f)); 
+            steering.add(separationForce.scl(separationWeight));
         }
 
         velocity.add(steering.cpy().scl(dt));
@@ -50,6 +55,7 @@ public class Enemy {
         if (velocity.len() > maxSpeed)
             velocity.nor().scl(maxSpeed);
 
+        
         position.add(velocity.cpy().scl(dt));
 
         if (velocity.len() > 0) {
@@ -111,6 +117,12 @@ public class Enemy {
         }
     
         return steering;
+    }
+
+    public void setDifficulty(int level) {
+        this.maxSpeed = baseMaxSpeed + level * 10f;
+        this.maxForce = baseMaxForce + level * 5f;
+        this.separationWeight = baseSeparationWeight + level * 0.2f;
     }
     
 
