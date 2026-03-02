@@ -12,6 +12,7 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.TimeUtils;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
@@ -154,6 +155,26 @@ public class Main extends ApplicationAdapter {
         }
 
         batch.end();
+
+
+        // 🔴 Draw red circle around leader
+        if (enemyLeader != null && !enemyLeader.exploded) {
+
+            float size = 40f;
+            float pulse = 5f * MathUtils.sinDeg((TimeUtils.millis() % 360));
+            float radius = size / 2f + 5f + pulse;
+
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(Color.RED);
+
+            shapeRenderer.circle(
+                    enemyLeader.position.x,
+                    enemyLeader.position.y,
+                    radius
+            );
+
+            shapeRenderer.end();
+        }
 
         drawHealthBar();
     }
@@ -314,25 +335,39 @@ public class Main extends ApplicationAdapter {
 
     //create array of followers
     private void spawnFollower(int level) {
-        //max of 5 followers
-        int maxFollowers = level > 5 ? 5 : level;
 
-        System.err.println("followers.size: " +followers.size);
-        if (followers.size < maxFollowers) {
-            for (int i = 0; i < maxFollowers; i++) { 
-                // Spawn near the leader
-                Vector2 spawnPos = enemyLeader.position.cpy()
-                    .add(MathUtils.random(-100, 100), 
-                        MathUtils.random(-100, 100));
+        int maxFollowers = level > 5 ? 5 : level;
     
-                Enemy newFollower = new Enemy(spawnPos.x, spawnPos.y, false);
-                newFollower.formationOffset = new Vector2(-40, -40);
+        if (followers.size >= maxFollowers) return;
     
-                followers.add(newFollower);
+        float spacing = 90f;
+        float angleStep = 360f / maxFollowers;
+
+        float halfSize = 20f; // enemy radius (size/2)
+        float uiHeight = UI_HEIGHT; // your top bar height
     
-                recalculateFormationOffsets();
-            }
+        for (int i = followers.size; i < maxFollowers; i++) {
+    
+            float angle = i * angleStep;
+    
+            float offsetX = MathUtils.cosDeg(angle) * spacing;
+            float offsetY = MathUtils.sinDeg(angle) * spacing;
+    
+            Vector2 formationOffset = new Vector2(offsetX, offsetY);
+    
+            Vector2 spawnPos = enemyLeader.position.cpy().add(formationOffset);
+
+            spawnPos.x = Math.max(halfSize,
+                Math.min(spawnPos.x, Gdx.graphics.getWidth() - halfSize));
+
+            spawnPos.y = Math.max(halfSize,
+                Math.min(spawnPos.y, Gdx.graphics.getHeight() - uiHeight - halfSize));
+    
+            Enemy newFollower = new Enemy(spawnPos.x, spawnPos.y, false);
+            newFollower.formationOffset = formationOffset;
+    
+            followers.add(newFollower);
         }
-    }   
+    }  
 }
 
