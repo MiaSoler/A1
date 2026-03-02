@@ -16,6 +16,7 @@ import com.badlogic.gdx.utils.ScreenUtils;
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
     public static final float UI_HEIGHT = 60f;
+    //render textures:images, text and shape
     private SpriteBatch batch;
     private BitmapFont font;
     private ShapeRenderer shapeRenderer;
@@ -24,6 +25,7 @@ public class Main extends ApplicationAdapter {
     private int shipWidth;
     private int shipHeight;
     private float scale = 0.25f;
+    private float playerRadius;
  
     private Player player;  
     private Enemy enemyLeader;
@@ -37,6 +39,8 @@ public class Main extends ApplicationAdapter {
     private boolean gameOver = false;
     
     @Override
+    //initialize the game with 1 player and 1 enemy
+    //calling restartGame to initialize the array of enemy followers
     public void create() {        
         batch = new SpriteBatch();
         font = new BitmapFont();
@@ -47,6 +51,7 @@ public class Main extends ApplicationAdapter {
 
         shipWidth = shipTexture.getWidth();
         shipHeight = shipTexture.getHeight();
+        playerRadius = (shipWidth * scale);
 
         restartGame(); // initialize game objects
     }
@@ -57,12 +62,11 @@ public class Main extends ApplicationAdapter {
 
         ScreenUtils.clear(0, 0, 0, 1);
 
-        if (enemyLeader != null){
-            update(dt);
-            draw();
-        }
+        update(dt);
+        draw();
+        
     }
-
+    //dispose to avoid memory leaks 
     @Override
     public void dispose() {
         batch.dispose();
@@ -72,7 +76,7 @@ public class Main extends ApplicationAdapter {
     }
 
     public void update(float dt) {
-        
+        //ending state: player has no more life
         if (gameOver) {
             if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
                 restartGame();
@@ -85,7 +89,7 @@ public class Main extends ApplicationAdapter {
         if (levelTimer >= levelInterval) {
             level++;
             levelTimer = 0f;
-            if (enemyLeader != null)
+            
             enemyLeader.setDifficulty(level);
     
             for (Enemy follower : followers)
@@ -94,8 +98,11 @@ public class Main extends ApplicationAdapter {
 
         player.update(dt);
 
-        enemyLeader.update(dt, player.position, null, player.position);
+        enemyLeader.update(dt, player.position, null, player.position, playerRadius);
 
+        //formation of enemies:guess the future position of the enemyLeader and computes the separation
+        //player position is passed in case enemy followers collide with the player 
+        //when an enemy collides with the player multiple followers are going to be created
         for (int i = 0; i < followers.size; i++) {
             Enemy follower = followers.get(i);
 
@@ -107,29 +114,27 @@ public class Main extends ApplicationAdapter {
         
             Vector2 separation = computeSeparation(follower, followers);
         
-            follower.update(dt, target, separation, player.position);
+            follower.update(dt, target, separation, player.position, playerRadius);
 
             if (follower.exploded) {
                 player.takeDamage(20);
                 followers.removeIndex(i);
-               // spawnFollower(1);
-                System.out.println("follower exploded: " + i);
                 i--;
+                spawnFollower(level);
             }
         }
-
+        //when the enemy leader explodes, a new formation leader is going to assigned
         if (enemyLeader.exploded) {
             player.takeDamage(20);
             assignNewLeader();
-           // spawnFollower(MathUtils.random(1, 3));
+            spawnFollower(level);
         }
-
 
         if (player.health <= 0) {
             gameOver = true;
         }
     }
-
+    //draw the player, enemies and health bar
     public void draw() {
         batch.begin();
         
@@ -137,7 +142,6 @@ public class Main extends ApplicationAdapter {
         if (enemyLeader != null&& !enemyLeader.exploded)
             drawEnemy(enemyLeader);
 
-        // Followers
         for (Enemy follower : followers) {
             if (!follower.exploded) {
                 drawEnemy(follower);
@@ -154,8 +158,7 @@ public class Main extends ApplicationAdapter {
         drawHealthBar();
     }
 
-    private void drawPlayer() {
-                
+    private void drawPlayer() {   
         batch.draw(
             shipTexture,
             player.position.x - (shipWidth * scale) / 2f,
@@ -191,7 +194,6 @@ public class Main extends ApplicationAdapter {
     }
 
     private void drawHealthBar() {
-
         float barWidth = 200;
         float barHeight = 20;
         float margin = 20;
@@ -222,8 +224,9 @@ public class Main extends ApplicationAdapter {
         batch.end();
     }
 
+    //this function make sure enemies keep a safe distance between them
     private Vector2 computeSeparation(Enemy current, Array<Enemy> followers) {
-        float desiredSeparation = 70f;
+        float desiredSeparation = 100f;
         int count = 0;
         Vector2 force = new Vector2();
     
@@ -260,6 +263,7 @@ public class Main extends ApplicationAdapter {
         return force;
     }
 
+    //initialize player, enemyleader and followers
     private void restartGame() {
         gameOver = false;
         level = 1;
@@ -273,13 +277,7 @@ public class Main extends ApplicationAdapter {
         spawnFollower(2);
     }
 
-    private void assignNewLeader() {
-
-        if (followers.size == 0) {
-            enemyLeader = null;
-            return;
-        }
-    
+    private void assignNewLeader() {    
         Enemy closest = followers.first();
         float minDist = closest.position.dst(player.position);
     
@@ -299,9 +297,8 @@ public class Main extends ApplicationAdapter {
 
         recalculateFormationOffsets();
     }
-
+    //assign each follower a new relative position 
     private void recalculateFormationOffsets() {
-
         float spacing = 60f;
 
         for (int i = 0; i < followers.size; i++) {
@@ -315,12 +312,14 @@ public class Main extends ApplicationAdapter {
         }
     }
 
-    private void spawnFollower(int amount) {
+    //create array of followers
+    private void spawnFollower(int level) {
+        //max of 5 followers
+        int maxFollowers = level > 5 ? 5 : level;
 
-        int maxFollowers = 5;
-
+        System.err.println("followers.size: " +followers.size);
         if (followers.size < maxFollowers) {
-            for (int i = 0; i<amount; i++) { 
+            for (int i = 0; i < maxFollowers; i++) { 
                 // Spawn near the leader
                 Vector2 spawnPos = enemyLeader.position.cpy()
                     .add(MathUtils.random(-100, 100), 
@@ -334,7 +333,6 @@ public class Main extends ApplicationAdapter {
                 recalculateFormationOffsets();
             }
         }
-    }
-    
+    }   
 }
 

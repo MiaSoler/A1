@@ -15,15 +15,19 @@ public class Player {
     public float height;
 
     public Player(float x, float y, float width, float height) {
+        //initial position
         position = new Vector2(x, y);
         velocity = new Vector2();
         rotation = 0f;
+        
         health = 100;
+        //player size
         this.width = width;
         this.height = height;
     }
 
     public void update(float dt) {
+        //Player stay withing screen game
         float halfWidth = width / 2f;
         float halfHeight = height / 2f;
 
@@ -35,6 +39,7 @@ public class Player {
 
         velocity.setZero();
  
+        //user key input to make spaceship move
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT))
             velocity.x += 1;
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT))
@@ -50,13 +55,13 @@ public class Player {
             // Rotate ship in movement direction
             rotation = velocity.angleDeg() - 90f;
         }       
-
+        //update position
         position.x = Math.max(minX, Math.min(position.x, maxX));
         position.y = Math.max(minY, Math.min(position.y, maxY));
 
         position.add(velocity.scl(dt));
     }
-
+    // function to reduce player's health when  it is hit
     public void takeDamage(int amount) {
         health -= amount;
     
