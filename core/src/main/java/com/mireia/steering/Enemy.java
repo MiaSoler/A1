@@ -36,10 +36,13 @@ public class Enemy {
         float switchDistance = 100f;  
         
         //explotion radius 
-        float enemyRadius = 40f;
+        float enemyRadius = 20f;
         float combinedRadius = enemyRadius + playerRadius;
+        float combinedRadiusSquared = combinedRadius * combinedRadius;
 
-        float distance = position.dst2(target);
+        float distanceLeader = position.dst2(target);
+        float distancePlayer = position.dst2(playerPosition);
+
         float halfSize = 20f;
         // try 1.5 – 3.0
 
@@ -48,7 +51,7 @@ public class Enemy {
         //target for enemyLeader is the spaceship
         //target for formation enemies is the enemyLeader
 
-        if (distance > switchDistance) {
+        if (distanceLeader > switchDistance) {
             // FAR → SEEK
             steering = seek(target);       
         } else {
@@ -73,11 +76,13 @@ public class Enemy {
         }
 
         // Explosion logic
-        if ((this.isLeader && distance  < combinedRadius) || (!this.isLeader  && position.dst2(playerPosition) < combinedRadius)) {
+        if ((isLeader && distanceLeader < combinedRadiusSquared) ||
+            (!isLeader && distancePlayer < combinedRadiusSquared)) {
+            
             System.out.println("this.isLeader: " +this.isLeader);
-            System.out.println("distance: " +distance);
+            System.out.println("distance: " +distanceLeader);
             System.out.println("combinedRadius: " +combinedRadius);
-            System.out.println("position.dst2(playerPosition): " +position.dst2(playerPosition));
+            System.out.println("position.dst2(playerPosition): " + distancePlayer);
             exploded = true;
         }
 

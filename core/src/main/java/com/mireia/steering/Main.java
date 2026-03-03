@@ -118,10 +118,12 @@ public class Main extends ApplicationAdapter {
             follower.update(dt, target, separation, player.position, playerRadius);
 
             if (follower.exploded) {
+                System.out.println("from follower!");
                 player.takeDamage(20);
                 followers.removeIndex(i);
-                i--;
-                spawnFollower(level);
+                i = i == 0 ? 0 : i--;
+                
+                spawnFollower(level);   
             }
         }
         //when the enemy leader explodes, a new formation leader is going to assigned
