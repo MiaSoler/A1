@@ -17,6 +17,7 @@ public class Enemy {
     public boolean exploded = false;
     public boolean isLeader = false;
     public float separationWeight = 1.5f;
+    public float radius = 20f;
 
      // Formation
     public Vector2 formationOffset; // null if leader
@@ -36,8 +37,7 @@ public class Enemy {
         float switchDistance = 100f;  
         
         //explotion radius 
-        float enemyRadius = 20f;
-        float combinedRadius = enemyRadius + playerRadius;
+        float combinedRadius = radius + playerRadius;
         float combinedRadiusSquared = combinedRadius * combinedRadius;
 
         float distanceLeader = position.dst2(target);

@@ -29,6 +29,8 @@ public class Main extends ApplicationAdapter {
     private float playerRadius;
  
     private Player player;  
+    private Array<Bullet> bullets = new Array<>();
+
     private Enemy enemyLeader;
     private Array<Enemy> followers;
 
@@ -99,6 +101,37 @@ public class Main extends ApplicationAdapter {
 
         player.update(dt);
 
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+            Vector2 forward = new Vector2(0,1).setAngleDeg(player.rotation + 90f);
+
+            float noseDistance = (shipHeight * scale) / 2f;
+
+            Vector2 spawnPos = player.position.cpy()
+                    .add(forward.scl(noseDistance));
+
+            bullets.add(new Bullet(spawnPos, player.rotation + 90f));
+        }
+
+        for (int i = 0; i < bullets.size; i++) {
+            Bullet b = bullets.get(i);
+            b.update(dt);
+        
+            if (!b.active) {
+                bullets.removeIndex(i);
+                i--;
+            }
+            for (int j = 0; j < followers.size; j++) {
+                Enemy e = followers.get(j);
+            
+                float combined = b.radius + e.radius;
+            
+                if (b.position.dst2(e.position) < combined * combined) {
+                    e.exploded = true;
+                    b.active = false;
+                }
+            }
+        }
+
         enemyLeader.update(dt, player.position, null, player.position, playerRadius);
 
         //formation of enemies:guess the future position of the enemyLeader and computes the separation
@@ -158,6 +191,7 @@ public class Main extends ApplicationAdapter {
 
         batch.end();
 
+        drawBullet();
 
         // 🔴 Draw red circle around leader
         if (enemyLeader != null && !enemyLeader.exploded) {
@@ -214,6 +248,38 @@ public class Main extends ApplicationAdapter {
                 asteroidTexture.getHeight(),
                 false, false
         );
+    }
+
+    private void drawBullet() {
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+
+        for (Bullet b : bullets) {
+
+            Vector2 direction = b.velocity.cpy().nor().scl(b.length);
+
+            float x1 = b.position.x;
+            float y1 = b.position.y;
+
+            float x2 = x1 - direction.x;
+            float y2 = y1 - direction.y;
+
+            // Outer glow
+            Gdx.gl.glLineWidth(5f);
+            shapeRenderer.setColor(1f, 0.6f, 0f, 0.4f); // soft orange
+            shapeRenderer.line(x1, y1, x2, y2);
+
+            // Middle layer
+            Gdx.gl.glLineWidth(3f);
+            shapeRenderer.setColor(Color.ORANGE);
+            shapeRenderer.line(x1, y1, x2, y2);
+
+            // Bright core
+            Gdx.gl.glLineWidth(1f);
+            shapeRenderer.setColor(Color.YELLOW);
+            shapeRenderer.line(x1, y1, x2, y2);
+        }
+
+        shapeRenderer.end();
     }
 
     private void drawHealthBar() {
