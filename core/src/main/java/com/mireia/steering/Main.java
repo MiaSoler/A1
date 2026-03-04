@@ -79,97 +79,140 @@ public class Main extends ApplicationAdapter {
     }
 
     public void update(float dt) {
-        //ending state: player has no more life
-        if (gameOver) {
-            if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
-                restartGame();
-            }
-                return;   // stop all logic 
-        }
 
+        if (handleGameOver()) return;
+    
+        updateLevel(dt);
+    
+        updatePlayer(dt);
+    
+        handleShooting();
+    
+        updateBullets(dt);
+    
+        updateEnemyLeader(dt);
+    
+        updateFollowers(dt);
+    
+        handleLeaderExplosion();
+    
+        checkGameOver();
+    }
+    //ending state: player has no more life
+    private boolean handleGameOver() {
+        if (!gameOver) return false;
+    
+        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) 
+            restartGame();
+    
+        return true;
+    }
+
+    private void updateLevel(float dt) {
         levelTimer += dt;
-
+    
         if (levelTimer >= levelInterval) {
             level++;
             levelTimer = 0f;
-            
+    
             enemyLeader.setDifficulty(level);
     
             for (Enemy follower : followers)
                 follower.setDifficulty(level);
         }
+    }
 
+    private void updatePlayer(float dt) {
         player.update(dt);
+    }
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-            Vector2 forward = new Vector2(0,1).setAngleDeg(player.rotation + 90f);
+    private void handleShooting() {
+        if (!Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
+            return;
+    
+        Vector2 forward = new Vector2(0,1).setAngleDeg(player.rotation + 90f);
+    
+        float noseDistance = (shipHeight * scale) / 2f;
+    
+        Vector2 spawnPos = player.position.cpy()
+                .add(forward.scl(noseDistance));
+    
+        bullets.add(new Bullet(spawnPos, player.rotation + 90f));
+    }
 
-            float noseDistance = (shipHeight * scale) / 2f;
-
-            Vector2 spawnPos = player.position.cpy()
-                    .add(forward.scl(noseDistance));
-
-            bullets.add(new Bullet(spawnPos, player.rotation + 90f));
-        }
+    private void updateBullets(float dt) {
 
         for (int i = 0; i < bullets.size; i++) {
-            Bullet b = bullets.get(i);
-            b.update(dt);
-        
-            if (!b.active) {
+            Bullet bullet = bullets.get(i);
+    
+            bullet.update(dt);
+    
+            if (!bullet.active) {
                 bullets.removeIndex(i);
                 i--;
+                continue;
             }
-            for (int j = 0; j < followers.size; j++) {
-                Enemy e = followers.get(j);
-            
-                float combined = b.radius + e.radius;
-            
-                if (b.position.dst2(e.position) < combined * combined) {
-                    e.exploded = true;
-                    b.active = false;
-                }
-            }
-        }
-
-        enemyLeader.update(dt, player.position, null, player.position, playerRadius);
-
-        //formation of enemies:guess the future position of the enemyLeader and computes the separation
-        //player position is passed in case enemy followers collide with the player 
-        //when an enemy collides with the player multiple followers are going to be created
-        for (int i = 0; i < followers.size; i++) {
-            Enemy follower = followers.get(i);
-
-            //calculate the future position of the enemy leader
-            Vector2 futurePos = enemyLeader.position.cpy()
-                .add(enemyLeader.velocity.cpy().scl(0.3f));
-        
-            Vector2 target = futurePos.add(follower.formationOffset);
-        
-            Vector2 separation = computeSeparation(follower, followers);
-        
-            follower.update(dt, target, separation, player.position, playerRadius);
-
-            if (follower.exploded) {
-                System.out.println("from follower!");
-                player.takeDamage(20);
-                followers.removeIndex(i);
-                i = i == 0 ? 0 : i--;
-                
-                spawnFollower(level);   
-            }
-        }
-        //when the enemy leader explodes, a new formation leader is going to assigned
-        if (enemyLeader.exploded) {
-            player.takeDamage(20);
-            assignNewLeader();
-            spawnFollower(level);
-        }
-
-        if (player.health <= 0) {
-            gameOver = true;
+    
+            checkBulletEnemyCollision(bullet);
         }
     }
+
+    private void checkBulletEnemyCollision(Bullet bullet) {
+
+        for (Enemy enemy : followers) {
+            float combined = bullet.radius + enemy.radius;
+    
+            if (bullet.position.dst2(enemy.position) < combined * combined) {
+                enemy.exploded = true;
+                bullet.active = false;
+                break;
+            }
+        }
+    }
+
+    private void updateEnemyLeader(float dt) {
+
+        enemyLeader.update(dt, player.position, null, player.position, playerRadius);
+    }
+
+    private void updateFollowers(float dt) {
+
+        for (int i = 0; i < followers.size; i++) {
+    
+            Enemy follower = followers.get(i);
+    
+            Vector2 futurePos = enemyLeader.position.cpy()
+                    .add(enemyLeader.velocity.cpy().scl(0.3f));
+            Vector2 target = futurePos.add(follower.formationOffset);
+            Vector2 separation = computeSeparation(follower, followers);
+    
+            follower.update(dt, target, separation, player.position, playerRadius);
+    
+            if (follower.exploded) {
+                player.takeDamage(20);
+                followers.removeIndex(i);
+    
+                spawnFollower(level);
+                i = i == 0 ? 0 : i--;
+            }
+        }
+    }
+
+    private void handleLeaderExplosion() {
+        if (!enemyLeader.exploded) return;
+    
+        player.takeDamage(20);
+    
+        assignNewLeader();
+    
+        spawnFollower(level);
+    }
+
+    private void checkGameOver() {
+        if (player.health <= 0)
+            gameOver = true;
+    }
+
     //draw the player, enemies and health bar
     public void draw() {
         batch.begin();
