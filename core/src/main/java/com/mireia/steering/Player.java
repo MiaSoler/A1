@@ -13,8 +13,9 @@ public class Player {
     public int health;
     public float width;
     public float height;
+    public float radius;
 
-    public Player(float x, float y, float width, float height) {
+    public Player(float x, float y, float width, float height, float radius) {
         //initial position
         position = new Vector2(x, y);
         velocity = new Vector2();

@@ -15,6 +15,7 @@ public class Enemy {
     private final float baseSeparationWeight = 1.5f;
     public float rotation;
     public boolean exploded = false;
+    public boolean explodedBullet = false;
     public boolean isLeader = false;
     public float separationWeight = 1.5f;
     public float radius = 20f;
@@ -79,10 +80,10 @@ public class Enemy {
         if ((isLeader && distanceLeader < combinedRadiusSquared) ||
             (!isLeader && distancePlayer < combinedRadiusSquared)) {
             
-            System.out.println("this.isLeader: " +this.isLeader);
-            System.out.println("distance: " +distanceLeader);
-            System.out.println("combinedRadius: " +combinedRadius);
-            System.out.println("position.dst2(playerPosition): " + distancePlayer);
+           // System.out.println("this.isLeader: " +this.isLeader);
+           // System.out.println("distance: " +distanceLeader);
+            //System.out.println("combinedRadius: " +combinedRadius);
+            //System.out.println("position.dst2(playerPosition): " + distancePlayer);
             exploded = true;
         }
 

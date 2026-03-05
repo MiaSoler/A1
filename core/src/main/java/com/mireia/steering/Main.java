@@ -16,60 +16,78 @@ import com.badlogic.gdx.utils.TimeUtils;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
+    // Height reserved at the top of the screen for UI elements (health bar, level text)
     public static final float UI_HEIGHT = 60f;
-    //render textures:images, text and shape
+    
+    // Renderers used by LibGDX to draw textures, fonts and shapes
     private SpriteBatch batch;
     private BitmapFont font;
     private ShapeRenderer shapeRenderer;
 
+    // Game textures (player spaceship and enemy asteroid)
     private Texture shipTexture, asteroidTexture;
+    // Original size of the player texture
     private int shipWidth;
     private int shipHeight;
+    // Scaling factor applied to the player sprite
     private float scale = 0.25f;
-    private float playerRadius;
- 
+   
+    // Player object
     private Player player;  
+    // Array storing all bullets currently active in the game
     private Array<Bullet> bullets = new Array<>();
 
+    // One enemy acts as leader of the formation
     private Enemy enemyLeader;
+    // Followers that move relative to the leader
     private Array<Enemy> followers;
 
-    //level
+    // Game level
     private int level = 1;
     private float levelTimer = 0f;
-    private float levelInterval = 15f; // seconds to level up
-
+    // Seconds to level up
+    private float levelInterval = 15f; 
+    
+    // Boolean that determines if the game has ended
     private boolean gameOver = false;
     
-    @Override
-    //initialize the game with 1 player and 1 enemy
-    //calling restartGame to initialize the array of enemy followers
+        @Override
+    // Initialize game resources
     public void create() {        
+
+        // Create renderers
         batch = new SpriteBatch();
         font = new BitmapFont();
         shapeRenderer = new ShapeRenderer();
 
+        // Load textures from assets folder
         shipTexture = new Texture("player.png");
         asteroidTexture = new Texture("enemy.png");
 
+        // Save original texture size
         shipWidth = shipTexture.getWidth();
         shipHeight = shipTexture.getHeight();
-        playerRadius = (shipWidth * scale);
-
-        restartGame(); // initialize game objects
+            
+        // Start the game
+        restartGame();
     }
 
     @Override
     public void render() {
+
+        // dt = time passed since last frame (used for smooth movement)
         float dt = Gdx.graphics.getDeltaTime();
 
+        // Clear screen (black background)
         ScreenUtils.clear(0, 0, 0, 1);
 
+        // Update game logic
         update(dt);
+
+        // Draw all game elements
         draw();
-        
     }
-    //dispose to avoid memory leaks 
+    // Dispose to avoid memory leaks 
     @Override
     public void dispose() {
         batch.dispose();
@@ -79,26 +97,34 @@ public class Main extends ApplicationAdapter {
     }
 
     public void update(float dt) {
-
+        // Stop updating if the game ended
         if (handleGameOver()) return;
     
+        // Increase game level based on time survived
         updateLevel(dt);
     
+        // Update player movement
         updatePlayer(dt);
     
+        // Check if player fired a bullet
         handleShooting();
     
+        // Update bullet positions and collisions
         updateBullets(dt);
     
+        // Update enemy leader behaviour
         updateEnemyLeader(dt);
     
+        // Update all follower enemies
         updateFollowers(dt);
     
+        // Check if the leader exploded and replace it
         handleLeaderExplosion();
     
+        // Check if player health reached zero
         checkGameOver();
     }
-    //ending state: player has no more life
+    // Ending state: player has no more life
     private boolean handleGameOver() {
         if (!gameOver) return false;
     
@@ -108,6 +134,7 @@ public class Main extends ApplicationAdapter {
         return true;
     }
 
+    // Game levels keeps going up depending on time
     private void updateLevel(float dt) {
         levelTimer += dt;
     
@@ -125,18 +152,23 @@ public class Main extends ApplicationAdapter {
     private void updatePlayer(float dt) {
         player.update(dt);
     }
-
+    // Player shoots when SPACE key is pressed
     private void handleShooting() {
+
         if (!Gdx.input.isKeyJustPressed(Input.Keys.SPACE))
             return;
-    
+
+        // Compute the forward direction of the spaceship
         Vector2 forward = new Vector2(0,1).setAngleDeg(player.rotation + 90f);
-    
-        float noseDistance = (shipHeight * scale) / 2f;
-    
+
+        // Distance from center of ship to the nose of the spaceship
+        float noseDistance = player.height / 2f;
+
+        // Spawn bullet at the front of the spaceship
         Vector2 spawnPos = player.position.cpy()
                 .add(forward.scl(noseDistance));
-    
+
+        // Create bullet
         bullets.add(new Bullet(spawnPos, player.rotation + 90f));
     }
 
@@ -149,7 +181,7 @@ public class Main extends ApplicationAdapter {
     
             if (!bullet.active) {
                 bullets.removeIndex(i);
-                i--;
+                i = i == 0 ? 0 : i--;
                 continue;
             }
     
@@ -157,14 +189,21 @@ public class Main extends ApplicationAdapter {
         }
     }
 
+    // Check if a bullet has hit any enemy
     private void checkBulletEnemyCollision(Bullet bullet) {
 
         for (Enemy enemy : followers) {
-            float combined = bullet.radius + enemy.radius;
-    
+
+            // Combined radius for circular collision detection
+            float combined = bullet.radius + (2 * enemy.radius);
+
+            // Compare squared distances for performance
             if (bullet.position.dst2(enemy.position) < combined * combined) {
-                enemy.exploded = true;
-                bullet.active = false;
+
+                enemy.exploded = true;      // mark enemy destroyed
+                enemy.explodedBullet = true;// destroyed by bullet
+                bullet.active = false;      // remove bullet
+
                 break;
             }
         }
@@ -172,24 +211,28 @@ public class Main extends ApplicationAdapter {
 
     private void updateEnemyLeader(float dt) {
 
-        enemyLeader.update(dt, player.position, null, player.position, playerRadius);
+        enemyLeader.update(dt, player.position, null, player.position, player.radius);
     }
-
+    //Update enemy followers behaviour and formation
     private void updateFollowers(float dt) {
 
         for (int i = 0; i < followers.size; i++) {
     
             Enemy follower = followers.get(i);
-    
+            //Predict leader future position for smoother formation following
             Vector2 futurePos = enemyLeader.position.cpy()
                     .add(enemyLeader.velocity.cpy().scl(0.3f));
+            
             Vector2 target = futurePos.add(follower.formationOffset);
             Vector2 separation = computeSeparation(follower, followers);
     
-            follower.update(dt, target, separation, player.position, playerRadius);
+            follower.update(dt, target, separation, player.position, player.radius);
     
+            // Handle follower destruction
             if (follower.exploded) {
-                player.takeDamage(20);
+                // Damage player only if enemy collided with ship
+                if (!follower.explodedBullet)
+                    player.takeDamage(20);
                 followers.removeIndex(i);
     
                 spawnFollower(level);
@@ -197,14 +240,13 @@ public class Main extends ApplicationAdapter {
             }
         }
     }
-
+    // When enemyLeader explotes, new leader needs to be assigned
     private void handleLeaderExplosion() {
         if (!enemyLeader.exploded) return;
-    
-        player.takeDamage(20);
+        if (!enemyLeader.explodedBullet)
+            player.takeDamage(20);
     
         assignNewLeader();
-    
         spawnFollower(level);
     }
 
@@ -213,7 +255,7 @@ public class Main extends ApplicationAdapter {
             gameOver = true;
     }
 
-    //draw the player, enemies and health bar
+    // Draw the player, enemies and health bar
     public void draw() {
         batch.begin();
         
@@ -227,33 +269,27 @@ public class Main extends ApplicationAdapter {
             }
         }
 
-        if (gameOver) {
-            font.draw(batch, "GAME OVER", 350, 320);
-            font.draw(batch, "Press R to Restart", 330, 280);
-        }
+        String gameOverText = "GAME OVER";
+        String restartText = "Press R to Restart";
+        
+        layout.setText(font, gameOverText);
+        
+        float x = (Gdx.graphics.getWidth() - layout.width) / 2;
+        float y = Gdx.graphics.getHeight() / 2;
+        
+        font.draw(batch, layout, x, y);
+        
+        // Restart text
+        layout.setText(font, restartText);
+        
+        float x2 = (Gdx.graphics.getWidth() - layout.width) / 2;
+        float y2 = y - 40;
+        
+        font.draw(batch, layout, x2, y2);
 
         batch.end();
 
         drawBullet();
-
-        // 🔴 Draw red circle around leader
-        if (enemyLeader != null && !enemyLeader.exploded) {
-
-            float size = 40f;
-            float pulse = 5f * MathUtils.sinDeg((TimeUtils.millis() % 360));
-            float radius = size / 2f + 5f + pulse;
-
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-            shapeRenderer.setColor(Color.RED);
-
-            shapeRenderer.circle(
-                    enemyLeader.position.x,
-                    enemyLeader.position.y,
-                    radius
-            );
-
-            shapeRenderer.end();
-        }
 
         drawHealthBar();
     }
@@ -261,12 +297,12 @@ public class Main extends ApplicationAdapter {
     private void drawPlayer() {   
         batch.draw(
             shipTexture,
-            player.position.x - (shipWidth * scale) / 2f,
-            player.position.y - (shipHeight * scale) / 2f,
-            (shipWidth * scale) / 2f,   // origin X
-            (shipHeight * scale) / 2f,  // origin Y
-            shipWidth * scale,
-            shipHeight * scale,
+            player.position.x - (player.width) / 2f,
+            player.position.y - (player.height) / 2f,
+            (player.width) / 2f,   // origin X
+            (player.height) / 2f,  // origin Y
+            player.width,
+            player.height,
             1f, 1f,          // scale
             player.rotation,
             0, 0,
@@ -296,12 +332,12 @@ public class Main extends ApplicationAdapter {
     private void drawBullet() {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
 
-        for (Bullet b : bullets) {
+        for (Bullet bullet : bullets) {
 
-            Vector2 direction = b.velocity.cpy().nor().scl(b.length);
+            Vector2 direction = bullet.velocity.cpy().nor().scl(bullet.length);
 
-            float x1 = b.position.x;
-            float y1 = b.position.y;
+            float x1 = bullet.position.x;
+            float y1 = bullet.position.y;
 
             float x2 = x1 - direction.x;
             float y2 = y1 - direction.y;
@@ -355,56 +391,69 @@ public class Main extends ApplicationAdapter {
         font.draw(batch, "Level: " + level, 20, Gdx.graphics.getHeight() - 20);
         batch.end();
     }
-
-    //this function make sure enemies keep a safe distance between them
+    // Separation steering behaviour
+    // Ensures enemies keep a safe distance from each other
     private Vector2 computeSeparation(Enemy current, Array<Enemy> followers) {
+
         float desiredSeparation = 100f;
         int count = 0;
+
+        // Final steering force
         Vector2 force = new Vector2();
-    
+
         for (Enemy follower : followers) {
+
+            // Ignore self
             if (follower == current) continue;
-    
+
             float distance = current.position.dst(follower.position);
 
+            // If enemy is too close, push away
             if (distance > 0 && distance < desiredSeparation) {
+
                 Vector2 difference = current.position.cpy()
                         .sub(follower.position)
                         .nor()
                         .scl(1f / distance);
+
                 force.add(difference);
                 count++;
             }
         }
-        // Average the force
+
+        // Average force from neighbors
         if (count > 0) {
             force.scl(1f / count);
         }
 
-        // Convert to proper steering force
+        // Convert desired direction to steering force
         if (force.len() > 0) {
+
             force.nor().scl(current.maxSpeed);
+
+            // Steering = desired velocity − current velocity
             force.sub(current.velocity);
 
-            // Limit force
+            // Limit steering force
             if (force.len() > current.maxForce) {
                 force.nor().scl(current.maxForce);
             }
         }
-
         return force;
     }
 
-    //initialize player, enemyleader and followers
+    // Initialize player, enemyleader and followers
     private void restartGame() {
         gameOver = false;
         level = 1;
         levelTimer = 0f;
     
-        player = new Player(400, 300, shipWidth * scale, shipHeight * scale);
+        player = new Player(400, 300, shipWidth * scale, shipHeight * scale, (shipWidth * scale)/2);
     
         enemyLeader = new Enemy(100, 100, true);
         followers = new Array<>();
+
+        bullets = new Array<>();
 
         spawnFollower(2);
     }
@@ -429,7 +478,7 @@ public class Main extends ApplicationAdapter {
 
         recalculateFormationOffsets();
     }
-    //assign each follower a new relative position 
+    // Assign each follower a new relative position 
     private void recalculateFormationOffsets() {
         float spacing = 60f;
 
@@ -444,7 +493,7 @@ public class Main extends ApplicationAdapter {
         }
     }
 
-    //create array of followers
+    // Create array of followers
     private void spawnFollower(int level) {
 
         int maxFollowers = level > 5 ? 5 : level;
@@ -452,10 +501,13 @@ public class Main extends ApplicationAdapter {
         if (followers.size >= maxFollowers) return;
     
         float spacing = 90f;
+        // Evenly distribute followers in a circular formation
         float angleStep = 360f / maxFollowers;
 
         float halfSize = 20f; // enemy radius (size/2)
         float uiHeight = UI_HEIGHT; // your top bar height
+        // Minimum safe distance from the player when spawning enemies
+        float minPlayerDistance = 300f;
     
         for (int i = followers.size; i < maxFollowers; i++) {
     
@@ -468,11 +520,24 @@ public class Main extends ApplicationAdapter {
     
             Vector2 spawnPos = enemyLeader.position.cpy().add(formationOffset);
 
+            // Clamp spawn inside screen bounds
             spawnPos.x = Math.max(halfSize,
                 Math.min(spawnPos.x, Gdx.graphics.getWidth() - halfSize));
 
             spawnPos.y = Math.max(halfSize,
                 Math.min(spawnPos.y, Gdx.graphics.getHeight() - uiHeight - halfSize));
+
+            // Prevent enemies from spawning too close to player
+            if (spawnPos.dst(player.position) < minPlayerDistance) {
+
+                // Push spawn position away from player
+                Vector2 away = spawnPos.cpy()
+                        .sub(player.position)
+                        .nor()
+                        .scl(minPlayerDistance);
+            
+                spawnPos.set(player.position.cpy().add(away));
+            }
     
             Enemy newFollower = new Enemy(spawnPos.x, spawnPos.y, false);
             newFollower.formationOffset = formationOffset;
