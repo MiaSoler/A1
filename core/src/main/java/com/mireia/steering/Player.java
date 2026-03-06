@@ -115,9 +115,6 @@ public class Player {
         if (health < 0) {
             health = 0;
         }
-
-        // Debug message showing remaining health
-        System.out.println("Player health: " + health);
     }
     
 }

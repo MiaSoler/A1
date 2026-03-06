@@ -6,13 +6,13 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
-import com.badlogic.gdx.utils.TimeUtils;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
@@ -23,6 +23,7 @@ public class Main extends ApplicationAdapter {
     private SpriteBatch batch;
     private BitmapFont font;
     private ShapeRenderer shapeRenderer;
+    private GlyphLayout layout;
 
     // Game textures (player spaceship and enemy asteroid)
     private Texture shipTexture, asteroidTexture;
@@ -59,6 +60,7 @@ public class Main extends ApplicationAdapter {
         batch = new SpriteBatch();
         font = new BitmapFont();
         shapeRenderer = new ShapeRenderer();
+        layout = new GlyphLayout();
 
         // Load textures from assets folder
         shipTexture = new Texture("player.png");
@@ -195,11 +197,10 @@ public class Main extends ApplicationAdapter {
         for (Enemy enemy : followers) {
 
             // Combined radius for circular collision detection
-            float combined = bullet.radius + (2 * enemy.radius);
+            float combined = bullet.radius + enemy.radius;
 
             // Compare squared distances for performance
             if (bullet.position.dst2(enemy.position) < combined * combined) {
-
                 enemy.exploded = true;      // mark enemy destroyed
                 enemy.explodedBullet = true;// destroyed by bullet
                 bullet.active = false;      // remove bullet
@@ -269,23 +270,8 @@ public class Main extends ApplicationAdapter {
             }
         }
 
-        String gameOverText = "GAME OVER";
-        String restartText = "Press R to Restart";
-        
-        layout.setText(font, gameOverText);
-        
-        float x = (Gdx.graphics.getWidth() - layout.width) / 2;
-        float y = Gdx.graphics.getHeight() / 2;
-        
-        font.draw(batch, layout, x, y);
-        
-        // Restart text
-        layout.setText(font, restartText);
-        
-        float x2 = (Gdx.graphics.getWidth() - layout.width) / 2;
-        float y2 = y - 40;
-        
-        font.draw(batch, layout, x2, y2);
+        if (gameOver)
+            drawGameover();
 
         batch.end();
 
@@ -315,17 +301,17 @@ public class Main extends ApplicationAdapter {
         float size = 40f; // fixed in-game size (recommended)
 
         batch.draw(
-                asteroidTexture,
-                e.position.x - size / 2f,
-                e.position.y - size / 2f,
-                size / 2f, size / 2f,  // rotation origin
-                size, size,
-                1f, 1f,
-                e.rotation,
-                0, 0,
-                asteroidTexture.getWidth(),
-                asteroidTexture.getHeight(),
-                false, false
+            asteroidTexture,
+            e.position.x - size / 2f,
+            e.position.y - size / 2f,
+            size / 2f, size / 2f,  // rotation origin
+            size, size,
+            1f, 1f,
+            e.rotation,
+            0, 0,
+            asteroidTexture.getWidth(),
+            asteroidTexture.getHeight(),
+            false, false
         );
     }
 
@@ -361,6 +347,26 @@ public class Main extends ApplicationAdapter {
         shapeRenderer.end();
     }
 
+    private void drawGameover() {
+        String gameOverText = "GAME OVER";
+        String restartText = "Press R to Restart";
+        
+        layout.setText(font, gameOverText);
+        
+        float x = (Gdx.graphics.getWidth() - layout.width) / 2;
+        float y = Gdx.graphics.getHeight() / 2;
+        
+        font.draw(batch, layout, x, y);
+        
+        // Restart text
+        layout.setText(font, restartText);
+        
+        float x2 = (Gdx.graphics.getWidth() - layout.width) / 2;
+        float y2 = y - 40;
+        
+        font.draw(batch, layout, x2, y2);
+    }
+
     private void drawHealthBar() {
         float barWidth = 200;
         float barHeight = 20;
@@ -391,7 +397,7 @@ public class Main extends ApplicationAdapter {
         font.draw(batch, "Level: " + level, 20, Gdx.graphics.getHeight() - 20);
         batch.end();
     }
-    // Separation steering behaviour
+    // Separation steering behavior
     // Ensures enemies keep a safe distance from each other
     private Vector2 computeSeparation(Enemy current, Array<Enemy> followers) {
 
@@ -402,7 +408,6 @@ public class Main extends ApplicationAdapter {
         Vector2 force = new Vector2();
 
         for (Enemy follower : followers) {
-
             // Ignore self
             if (follower == current) continue;
 
@@ -428,7 +433,6 @@ public class Main extends ApplicationAdapter {
 
         // Convert desired direction to steering force
         if (force.len() > 0) {
-
             force.nor().scl(current.maxSpeed);
 
             // Steering = desired velocity − current velocity
@@ -450,7 +454,7 @@ public class Main extends ApplicationAdapter {
     
         player = new Player(400, 300, shipWidth * scale, shipHeight * scale, (shipWidth * scale)/2);
     
-        enemyLeader = new Enemy(100, 100, true);
+        enemyLeader = new Enemy(100, 100, true, (asteroidTexture.getWidth()*scale)/2);
         followers = new Array<>();
 
         bullets = new Array<>();
@@ -483,7 +487,6 @@ public class Main extends ApplicationAdapter {
         float spacing = 60f;
 
         for (int i = 0; i < followers.size; i++) {
-
             float angle = i * 45f;
 
             float offsetX = MathUtils.cosDeg(angle) * spacing;
@@ -495,7 +498,6 @@ public class Main extends ApplicationAdapter {
 
     // Create array of followers
     private void spawnFollower(int level) {
-
         int maxFollowers = level > 5 ? 5 : level;
     
         if (followers.size >= maxFollowers) return;
@@ -510,7 +512,6 @@ public class Main extends ApplicationAdapter {
         float minPlayerDistance = 300f;
     
         for (int i = followers.size; i < maxFollowers; i++) {
-    
             float angle = i * angleStep;
     
             float offsetX = MathUtils.cosDeg(angle) * spacing;
@@ -539,7 +540,7 @@ public class Main extends ApplicationAdapter {
                 spawnPos.set(player.position.cpy().add(away));
             }
     
-            Enemy newFollower = new Enemy(spawnPos.x, spawnPos.y, false);
+            Enemy newFollower = new Enemy(spawnPos.x, spawnPos.y, false, (asteroidTexture.getWidth()*scale)/2);
             newFollower.formationOffset = formationOffset;
     
             followers.add(newFollower);

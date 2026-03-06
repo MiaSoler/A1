@@ -38,14 +38,14 @@ public class Enemy {
     public float separationWeight = 1.5f;
 
     // Collision radius used for circular collision detection
-    public float radius = 20f;
+    public float radius;
 
     // Offset relative to the leader used for formation positioning
     // Leader enemies have no offset (null)
     public Vector2 formationOffset;
 
 
-    public Enemy(float posX, float posY, boolean isLeader) {
+    public Enemy(float posX, float posY, boolean isLeader, float radius) {
 
         // Initialize enemy position
         position = new Vector2(posX, posY);
@@ -58,6 +58,8 @@ public class Enemy {
 
         // Set whether this enemy is the leader
         this.isLeader = isLeader;
+
+        this.radius = radius;
     }
 
 
@@ -89,12 +91,12 @@ public class Enemy {
         // Followers seek the leader formation position
         if (distanceLeader > switchDistance) {
 
-            // FAR → SEEK behaviour
+            // FAR → SEEK behavior
             steering = seek(target);
 
         } else {
 
-            // CLOSE → ARRIVE behaviour (slow down when near target)
+            // CLOSE → ARRIVE behavior (slow down when near target)
             steering = arrive(target);
         }
 
@@ -137,7 +139,7 @@ public class Enemy {
     }
 
 
-    // SEEK behaviour
+    // SEEK behavior
     // Enemy moves directly toward a target at full speed
     public Vector2 seek(Vector2 target) {
 
@@ -150,16 +152,14 @@ public class Enemy {
     }
 
 
-    // ARRIVE behaviour
+    // ARRIVE behavior
     // Enemy slows down when approaching the target
     public Vector2 arrive(Vector2 target) {
 
         float slowRadius = 120f;
-
         float speed = this.maxSpeed;
 
         Vector2 desired = target.cpy().sub(position);
-
         float distance = desired.len();
 
         if (distance < 0.001f) {

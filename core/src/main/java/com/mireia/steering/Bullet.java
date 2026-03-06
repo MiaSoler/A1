@@ -15,7 +15,7 @@ public class Bullet {
     public float speed = 400f;
 
     // Collision radius used for circular collision detection
-    public float radius = 5f;
+    public float radius = 8f;
 
     // Determines if the bullet is still active in the game
     // If false → bullet will be removed from the bullet array
